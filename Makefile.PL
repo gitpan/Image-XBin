@@ -8,5 +8,7 @@ WriteMakefile(
 		'File::SAUCE'     => 0.12,
 		'IO::File'        => 0,
 		'IO::String'      => 0,
+		'GD'              => 2.17,
+		'File::Temp'      => 0
 	}
 );

@@ -8,8 +8,19 @@ Image::XBin::Font - Manipulate XBin font data
 
 	use Image::XBin::Font;
 
-	# Read the data...
-	my $fnt = Image::XBin::Font->new( $data, $chars, $height );
+	# Create a new font
+	my $fnt = Image::XBin::Font->new;
+
+	# Set all of the chars
+	$fnt->chars( $chars );
+
+	# Set one of them
+	$fnt->char( 65, $char );
+
+	# Accessors
+	my $width  = $fnt->width;
+	my $height = $fnt->height;
+	my $chars  = $fnt->characters;
 
 	# Get output suitable for saving...
 	my $out = $fnt->as_string;
@@ -26,56 +37,55 @@ Xbin images can contain font data. This module will allow you to create, and man
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+use GD;
+use File::Temp;
+
+our $VERSION = '0.04';
 
 =head1 METHODS
 
-=head2 new( [$data, $chars] )
+=head2 new( [$chars] )
 
-Creates a new Image::XBin::Font object. Reads in the data for $chars characters. Each character has $data/$height scanlines.
+Creates a new Image::XBin::Font object.
 
 =cut
 
 sub new {
 	my $class = shift;
-	my ( $data, $chars ) = @_;
 	my $self  = {};
 
 	bless $self, $class;
 
 	$self->clear;
-	$self->read( $data, $chars ) if $data;
+	$self->chars( @_ ) if @_;
 
 	return $self;
 }
 
-=head2 read( $data, $chars )
+=head2 chars( [$chars] )
 
-Explicitly reads in data.
+sets the character set. $chars should be an array (either 256 or 512 [the number of
+characters]) of arrays (from 1 to 32 [1 bitmask per scanline]).
 
 =cut
 
-sub read {
-	my $self = shift;
-	my ( $data, $chars ) = @_;
+sub chars {
+	my $self  = shift;
+	my $chars = $_[ 0 ];
 
-#	$self->{ data } = $data if ref( $data ) eq 'ARRAY';
-
-	$self->{ chars  } = $chars;
-	$self->{ height } = length( $data ) / $chars;
-
-	my @font = unpack( 'C*', $data );
-
-	my $height = $self->{ height };
-	my $font = [];
-	for my $i ( 0..$chars - 1 ) {
-		push @$font, [];
-		for my $j ( 0..$height - 1 ) {
-			push @{ $font->[ $#{ $font } ] }, $font[ $i * $height + $j ];
+	if( @_ ) {
+		if( @$chars == 0 ) {
+			$self->{ _CHARS } = [];
+			$self->height( 0 );
+		}
+		else {
+			for( 0..@$chars - 1 ) {
+				$self->char( $_, $chars->[ $_ ] );
+			}
 		}
 	}
 
-	$self->{ data } = $font;
+	return $self->{ _CHARS };
 }
 
 =head2 as_string( )
@@ -89,11 +99,32 @@ sub as_string {
 
 	my $output;
 
-	for my $char ( @{ $self->{ data } } ) {
+	for my $char ( @{ $self->chars } ) {
 		$output .= pack( 'C', $_ ) for @{ $char };
 	}
 
 	return $output;	
+}
+
+=head2 as_gd( )
+
+Returns a GD::Font object.
+
+=cut
+
+sub as_gd {
+	my $self = shift;
+	my $temp = File::Temp->new;
+
+	binmode( $temp );
+
+	print $temp pack( 'LLLL', $self->characters, 0, $self->width, $self->height );
+	for my $char ( @{ $self->chars } ) {
+		print $temp pack( 'C*', split( //, sprintf( '%08b', $_ ) ) ) for @$char;
+	}
+	close $temp;
+
+	return GD::Font->load( $temp->filename );
 }
 
 =head2 clear( )
@@ -105,16 +136,64 @@ Clears any in-memory data.
 sub clear {
 	my $self = shift;
 
-	$self->{ data } = [];
+	$self->chars( [] );
 }
 
-=head1 TODO
+=head2 width( )
 
-=over 4
+Returns "8".
 
-=item * write some useful methods :)
+=cut
 
-=back
+sub width {
+	return 8;
+}
+
+=head2 char( $index, [$char] )
+
+Get / set a char in the font.
+
+=cut
+
+sub char {
+	my $self  = shift;
+	my $index = shift;
+	my $char  = $_[ 0 ];
+
+	if( @_ ) {
+		$self->{ _CHARS }->[ $index ] = $char;
+		$self->height( scalar @$char );
+	}
+	
+	return $self->{ _CHARS }->[ $index ];
+}
+
+=head2 characters( )
+
+returns the number of characters in the font
+
+=cut
+
+sub characters {
+	return scalar @{ $_[ 0 ]->chars };
+}
+
+=head2 height( [$height] )
+
+returns the number of scanlines in each of the characters in the font
+
+=cut
+
+sub height {
+	my $self   = shift;
+	my $height = $_[ 0 ];
+
+	if( @_ ) {
+		$self->{ _HEIGHT } = $height;
+	}
+
+	return $self->{ _HEIGHT };
+}
 
 =head1 AUTHOR
 

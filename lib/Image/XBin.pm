@@ -71,8 +71,11 @@ use warnings;
 use Carp;
 use Image::XBin::Parser;
 use Image::XBin::Util;
+use Image::XBin::Palette::Default;
+use Image::XBin::Font::Default;
+use GD;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use constant XBIN_ID          => 'XBIN';
 
@@ -231,6 +234,93 @@ sub as_string {
 	return $output;
 }
 
+=head2 as_png( [%options] )
+
+Returns a binary PNG version of the image.
+
+	# Thumbnail -- Default
+	$xbin->as_png( mode => 'thumbnail' );
+
+	# Full size
+	$xbin->as_png( mode => 'full' );
+
+This function is just a wrapper around as_png_thumbnail() and as_png_full().
+
+=cut
+
+sub as_png {
+	my $self    = shift;
+	my %options = @_;
+
+        $options{ mode } = 'thumbnail' unless defined $options{ mode } and $options{ mode } eq 'full';
+
+        if( $options{ mode } eq 'full' ) {
+                return $self->as_png_full( @_ );
+        }
+        else {
+                return $self->as_png_thumbnail( @_ );
+	}
+}
+
+=head2 as_png_thumbnail( [%options] )
+
+Creates a thumbnail version of the XBin.
+
+=cut
+
+sub as_png_thumbnail {
+	my $self = shift;
+	croak( "Not implemented" );
+}
+
+=head2 as_png_full( [%options] )
+
+Creates a full-size replica of the image. You can pass a "crop" option to
+crop the image at certain height.
+
+	# Crop it after 25 (text-mode) rows
+	$xbin->as_png_full( crop => 25 );
+
+=cut
+
+sub as_png_full {
+	my $self    = shift;
+	my %options = @_;
+	my $crop    = ( defined $options{ crop } and $options{ crop } > 0 and $options{ crop } < $self->height ) ? $options{ crop } : $self->height;
+
+	my $palette = $self->has_palette ? $self->palette : Image::XBin::Palette::Default->new;
+	my $font    = $self->has_font ? $self->font : Image::XBin::Font::Default->new;
+
+	my $image   = GD::Image->new( $self->width * 8, $crop * $font->height );
+
+	my @colors;
+        for( 0..15 ) {
+		push @colors, $image->colorAllocate(
+			map {
+				$_->[ 0 ] / 63 * 255,
+				$_->[ 1 ] / 63 * 255,
+				$_->[ 2 ] / 63 * 255 
+			} $palette->get( $_ )
+		);
+        }
+
+	my $gdfont = $font->as_gd;
+
+	# Create the png
+	for my $y ( 0..$crop - 1 ) {
+		for my $x ( 0..$self->width - 1 ) {
+			my $pixel = $self->getpixel( $x, $y );
+			if( $pixel->bg ) {
+				$image->filledRectangle( $x * $font->width, $y * $font->height, ( $x + 1 ) * $font->width, ( $y + 1 ) * $font->height - 1, $colors[ $pixel->bg ] );
+			}
+
+			$image->string( $gdfont, $x * $font->width, $y * $font->height, $pixel->char, $colors[ $pixel->fg ] );
+		}
+	}
+
+	return $image->png;
+}
+
 =head2 has_palette( )
 
 Returns true if the file has a palette defined.
@@ -357,7 +447,7 @@ sub font {
 	if( @_ and ref $font eq 'Image::XBin::Font' ) {
 		$self->{ font } = $font;
 		$self->flags( $self->flags | FONT );
-		$self->flags( $self->flags | FIVETWELVE_CHARS ) if $font->{ chars } == 512;
+		$self->flags( $self->flags | FIVETWELVE_CHARS ) if $font->characters == 512;
 	}
 	# clear data otherwise
 	elsif( @_ ) {

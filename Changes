@@ -1,5 +1,10 @@
 Revision history for Perl extension Image::XBin.
 
+0.04  Thu Dec 09 10:17:20 2004
+	- wrote some tests
+	- added default font and palette
+	- added as_png() method
+
 0.03  Mon Dec 06 16:29:32 2004
 	- major rewrite to the old objects plus...
 	- Image::XBin::Parser now handles all reading functions

@@ -33,7 +33,7 @@ use constant FULL_COMPRESSION      => 192;
 use constant COMPRESSION_TYPE      => 192;
 use constant COMPRESSION_COUNTER   => 63;
 
-our $VERSION        = '0.01';
+our $VERSION        = '0.02';
 
 my $eof_char        = chr( 26 );
 my $header_template = 'A4 C S S C C';
@@ -128,8 +128,22 @@ sub parse {
 	if ( $self->xbin->has_font ) {
 		my $fontsize = $self->xbin->fontsize;
 		my $chars    = $fontsize * ( $self->xbin->has_512chars ? 512 : 256 );
+		my $font     = Image::XBin::Font->new;
 
-		$self->xbin->font( Image::XBin::Font->new( substr( $content, $counter, $chars ), $fontsize ) );
+		my $charcnt  = 0;
+		my $scanline = 1;
+		my $buffer   = [];
+		for my $byte ( unpack( 'C*', substr( $content, $counter, $chars ) ) ) {
+			push @$buffer, $byte;
+			if ( ++$scanline > $fontsize ) {
+				$font->char( $charcnt, $buffer );
+				$charcnt++;
+				$scanline = 1;
+				$buffer   = [];
+			}
+		}
+
+		$self->xbin->font( $font );
 
 		$counter += $chars;
 	}

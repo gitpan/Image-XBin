@@ -1,6 +1,8 @@
 Changes
 lib/Image/XBin.pm
+lib/Image/XBin/Font/Default.pm
 lib/Image/XBin/Font.pm
+lib/Image/XBin/Palette/Default.pm
 lib/Image/XBin/Palette.pm
 lib/Image/XBin/Parser.pm
 lib/Image/XBin/Pixel.pm
