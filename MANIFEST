@@ -1,0 +1,8 @@
+Changes
+lib/Image/XBin.pm
+lib/Image/XBin/Font.pm
+lib/Image/XBin/Palette.pm
+Makefile.PL
+MANIFEST
+README
+test.pl
