@@ -61,6 +61,22 @@ XBin file stucture:
 Note, the only required element is a header. See the XBin specs for for information.
 http://www.acid.org/info/xbin/xbin.htm
 
+=head1 INSTALLATION
+
+To install this module via Module::Build:
+
+	perl Build.PL
+	./Build         # or `perl Build`
+	./Build test    # or `perl Build test`
+	./Build install # or `perl Build install`
+
+To install this module via ExtUtils::MakeMaker:
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
 =cut
 
 use base qw( Class::Accessor );
@@ -75,7 +91,7 @@ use Image::XBin::Palette::Default;
 use Image::XBin::Font::Default;
 use GD;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use constant XBIN_ID          => 'XBIN';
 
@@ -123,7 +139,7 @@ sub new {
 		exists $options{ string } or
 		exists $options{ handle }
 	) {
-		$self->read( @_ );
+		return $self->read( @_ );
 	}
 	else {
 		# create new using options
@@ -535,7 +551,7 @@ Returns the image height.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Brian Cassidy
+Copyright 2005 by Brian Cassidy
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

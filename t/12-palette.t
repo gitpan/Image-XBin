@@ -5,7 +5,7 @@ BEGIN {
     use_ok( 'Image::XBin::Palette::Default' );
 }
 
-my $brightblack = [ 85,  85,  85  ];
+my $brightblack = [ 21,  21,  21  ];
 my $index       = 8;
 
 my $pal = Image::XBin::Palette->new;

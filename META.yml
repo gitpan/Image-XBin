@@ -1,16 +1,41 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Image-XBin
-version:      0.04
-version_from: lib/Image/XBin.pm
-installdirs:  site
+--- #YAML:1.0
+name: Image-XBin
+version: 0.05
+author:
+  - Brian Cassidy <bricas@cpan.org>
+abstract: Load, create, manipulate and save XBin image files
+license: perl
 requires:
-    Class::Accessor:               0
-    File::SAUCE:                   0.12
-    File::Temp:                    0
-    GD:                            2.17
-    IO::File:                      0
-    IO::String:                    0
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+  Class::Accessor: 0
+  File::SAUCE: 0.12
+  File::Temp: 0
+  GD: 2.17
+  IO::File: 0
+  IO::String: 0
+  Test::More: 0
+provides:
+  Image::XBin:
+    file: lib/Image/XBin.pm
+    version: 0.05
+  Image::XBin::Font:
+    file: lib/Image/XBin/Font.pm
+    version: 0.04
+  Image::XBin::Font::Default:
+    file: lib/Image/XBin/Font/Default.pm
+    version: 0.02
+  Image::XBin::Palette:
+    file: lib/Image/XBin/Palette.pm
+    version: 0.03
+  Image::XBin::Palette::Default:
+    file: lib/Image/XBin/Palette/Default.pm
+    version: 0.02
+  Image::XBin::Parser:
+    file: lib/Image/XBin/Parser.pm
+    version: 0.03
+  Image::XBin::Pixel:
+    file: lib/Image/XBin/Pixel.pm
+    version: 0.02
+  Image::XBin::Util:
+    file: lib/Image/XBin/Util.pm
+    version: 0.01
+generated_by: Module::Build version 0.2609

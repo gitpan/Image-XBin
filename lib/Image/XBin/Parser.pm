@@ -33,7 +33,7 @@ use constant FULL_COMPRESSION      => 192;
 use constant COMPRESSION_TYPE      => 192;
 use constant COMPRESSION_COUNTER   => 63;
 
-our $VERSION        = '0.02';
+our $VERSION        = '0.03';
 
 my $eof_char        = chr( 26 );
 my $header_template = 'A4 C S S C C';
@@ -61,7 +61,7 @@ sub new {
 		exists $options{ string } or
 		exists $options{ handle }
 	) {
-		$self->parse( @_ );
+		return $self->parse( @_ );
 	}
 
 	return $self;
@@ -83,14 +83,16 @@ sub clear {
 
 Reads in a file, handle or string
 
+	my $parser = Image::XBin::Parser->new;
+
 	# filename
-	$xbin = Image::XBin->new( file => 'file.xb' );
+	$xbin = $parser->parse( file => 'file.xb' );
 	
 	# file handle
-	$xbin = Image::XBin->new( handle => $handle );
+	$xbin = $parser->parse( handle => $handle );
 
 	# string
-	$xbin = Image::XBin->new( string => $string );
+	$xbin = $parser->parse( string => $string );
 
 =cut
 

@@ -15,27 +15,35 @@ use base qw( Image::XBin::Palette );
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my $palette = [
 	[ 0,   0,   0   ], # black
-	[ 170, 0,   0   ], # red
-	[ 0,   170, 0   ], # green
-	[ 170, 85,  0   ], # yellow
-	[ 0,   0,   170 ], # blue
-	[ 170, 0,   170 ], # magenta
-	[ 0,   170, 170 ], # cya
-	[ 170, 170, 170 ], # white
+	[ 42,  0,   0   ], # red
+	[ 0,   42,  0   ], # green
+	[ 42,  21,  0   ], # yellow
+	[ 0,   0,   42  ], # blue
+	[ 42,  0,   42  ], # magenta
+	[ 0,   42,  42  ], # cya
+	[ 42,  42,  42  ], # white
 	                   # bright
-	[ 85,  85,  85  ], # black
-	[ 255, 85,  85  ], # red
-	[ 85,  255, 85  ], # green
-	[ 255, 255, 85  ], # yellow
-	[ 85,  85,  255 ], # blue
-	[ 255, 85,  255 ], # magenta
-	[ 85,  255, 255 ], # cyan
-	[ 255, 255, 255 ]  # white
+	[ 21,  21,  21  ], # black
+	[ 63,  21,  21  ], # red
+	[ 21,  63,  21  ], # green
+	[ 63,  63,  21  ], # yellow
+	[ 21,  21,  63  ], # blue
+	[ 63,  21,  63  ], # magenta
+	[ 21,  63,  63  ], # cyan
+	[ 63,  63,  63  ]  # white
 ];
+
+=head1 METHODS
+
+=head2 new( )
+
+Creates a new default palette object.
+
+=cut
 
 sub new {
 	my $class = shift;
