@@ -2,7 +2,7 @@ package Image::XBin::Font;
 
 use strict;
 
-$image::XBin::Font::VERSION = '0.01';
+$image::XBin::Font::VERSION = '0.02';
 
 sub new {
 	my $class = shift;
@@ -39,6 +39,18 @@ sub read {
 	$self->{ data } = $font;
 }
 
+sub as_string {
+	my $self = shift;
+
+	my $output;
+
+	for my $char ( @{ $self->{ data } } ) {
+		$output .= pack( 'C', $_ ) for @{ $char };
+	}
+
+	return $output;	
+}
+
 sub clear {
 	my $self = shift;
 
@@ -60,6 +72,9 @@ Image::XBin::Font - Manipulate XBin font data
 	# Read the data...
 	my $fnt = Image::XBin::Font->new( $data, $chars, $height );
 
+	# Get output suitable for saving...
+	my $out = $fnt->as_string;
+
 	# Clear the data
 	$fnt->clear;
 
@@ -78,6 +93,10 @@ Creates a new Image::XBin::Font object. Reads in the data for $chars characters.
 =item read($data, $chars, $height)
 
 Explicitly reads in data.
+
+=item as_string()
+
+Returns the font as a pack()'ed string - suitable for saving in an XBin.
 
 =item clear()
 

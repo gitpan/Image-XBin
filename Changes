@@ -1,5 +1,25 @@
 Revision history for Perl extension Image::XBin.
 
+0.02  Sun Aug 24 12:05:30 2003
+	- Fixed Makefile.PL (NAME and PREREQ_PM)
+
+	Font.pm
+	- Added as_string method
+
+	Palette.pm
+	- Added as_string method
+
+	XBin.pm
+	- Added as_string method
+	  Note, it sets the header's compressed bit to 0 because
+	  there's no compression alg. yet
+	- Added write method.
+	- palette() and font() will now clear the data (and header values)
+	  if given anything other than the right type of object
+	- font() will now set the 512 chars header value correctly
+	- Mutator compress() added.
+	- clear() now sets image, font and palette to undef
+
 0.01  Sun Aug 10 16:11:04 2003
 	- original version; created by h2xs 1.21 with options
 		-AX Image::XBin

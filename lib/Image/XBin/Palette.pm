@@ -2,7 +2,7 @@ package Image::XBin::Palette;
 
 use strict;
 
-$image::XBin::Palette::VERSION = '0.01';
+$image::XBin::Palette::VERSION = '0.02';
 
 sub new {
 	my $class = shift;
@@ -34,6 +34,18 @@ sub read {
 	}
 
 	$self->{ data } = $palette;
+}
+
+sub as_string {
+	my $self = shift;
+
+	my $output;
+
+	for my $color ( @{ $self->{ data } } ) {
+		$output .= pack( 'C', $_ ) for @{ $color };
+	}
+
+	return $output;
 }
 
 sub get {
@@ -77,6 +89,9 @@ Image::XBin::Palette - Manipulate XBin palette data
 	# Set
 	$pal->set( $index, $rgb );
 
+	# Get data suitable for saving...
+	my $out = $pal->as_string;
+
 	# Clear the data
 	$pal->clear;
 
@@ -95,6 +110,10 @@ Creates a new Image::XBin::Palette object. Unpacks 16 rgb triples.
 =item read($data)
 
 Explicitly reads in data.
+
+=item as_string()
+
+Returns the palette as a pack()'ed string - suitable for saving in an XBin.
 
 =item clear()
 
