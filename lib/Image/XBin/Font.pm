@@ -1,66 +1,5 @@
 package Image::XBin::Font;
 
-use strict;
-
-$image::XBin::Font::VERSION = '0.02';
-
-sub new {
-	my $class = shift;
-	my ( $data, $chars, $height ) = @_;
-	my $self  = {};
-
-	bless $self, $class;
-
-	$self->clear;
-	$self->read( $data, $chars, $height ) if $data;
-
-	return $self;
-}
-
-sub read {
-	my $self = shift;
-	my ( $data, $chars, $height ) = @_;
-
-	$self->{ data } = $data if ref( $data ) eq 'ARRAY';
-
-	$self->{ chars  } = $chars;
-	$self->{ height } = $height;
-
-	my @font = unpack( 'C*', $data );
-
-	my $font = [];
-	for my $i ( 0..$chars - 1 ) {
-		push @$font, [];
-		for my $j ( 0..$height - 1 ) {
-			push @{ $font->[ $#{ $font } ] }, $font[ $i * $height + $j ];
-		}
-	}
-
-	$self->{ data } = $font;
-}
-
-sub as_string {
-	my $self = shift;
-
-	my $output;
-
-	for my $char ( @{ $self->{ data } } ) {
-		$output .= pack( 'C', $_ ) for @{ $char };
-	}
-
-	return $output;	
-}
-
-sub clear {
-	my $self = shift;
-
-	$self->{ data } = [];
-}
-
-1;
-
-=pod
-
 =head1 NAME
 
 Image::XBin::Font - Manipulate XBin font data
@@ -82,44 +21,116 @@ Image::XBin::Font - Manipulate XBin font data
 
 Xbin images can contain font data. This module will allow you to create, and manipulate that data.
 
+=cut
+
+use strict;
+use warnings;
+
+our $VERSION = '0.03';
+
 =head1 METHODS
 
-=over 4
+=head2 new( [$data, $chars] )
 
-=item new($data, $chars, $height)
+Creates a new Image::XBin::Font object. Reads in the data for $chars characters. Each character has $data/$height scanlines.
 
-Creates a new Image::XBin::Font object. Reads in the data for $chars characters. Each character has $height scanlines.
+=cut
 
-=item read($data, $chars, $height)
+sub new {
+	my $class = shift;
+	my ( $data, $chars ) = @_;
+	my $self  = {};
+
+	bless $self, $class;
+
+	$self->clear;
+	$self->read( $data, $chars ) if $data;
+
+	return $self;
+}
+
+=head2 read( $data, $chars )
 
 Explicitly reads in data.
 
-=item as_string()
+=cut
+
+sub read {
+	my $self = shift;
+	my ( $data, $chars ) = @_;
+
+#	$self->{ data } = $data if ref( $data ) eq 'ARRAY';
+
+	$self->{ chars  } = $chars;
+	$self->{ height } = length( $data ) / $chars;
+
+	my @font = unpack( 'C*', $data );
+
+	my $height = $self->{ height };
+	my $font = [];
+	for my $i ( 0..$chars - 1 ) {
+		push @$font, [];
+		for my $j ( 0..$height - 1 ) {
+			push @{ $font->[ $#{ $font } ] }, $font[ $i * $height + $j ];
+		}
+	}
+
+	$self->{ data } = $font;
+}
+
+=head2 as_string( )
 
 Returns the font as a pack()'ed string - suitable for saving in an XBin.
 
-=item clear()
+=cut
+
+sub as_string {
+	my $self = shift;
+
+	my $output;
+
+	for my $char ( @{ $self->{ data } } ) {
+		$output .= pack( 'C', $_ ) for @{ $char };
+	}
+
+	return $output;	
+}
+
+=head2 clear( )
 
 Clears any in-memory data.
 
-=back
+=cut
+
+sub clear {
+	my $self = shift;
+
+	$self->{ data } = [];
+}
 
 =head1 TODO
 
-	+ write some useful methods :)
+=over 4
 
-=head1 BUGS
+=item * write some useful methods :)
 
-If you have any questions, comments, bug reports or feature suggestions, 
-email them to Brian Cassidy <brian@alternation.net>.
+=back
 
-=head1 CREDITS
+=head1 AUTHOR
 
-This module was written by Brian Cassidy (http://www.alternation.net/).
+=over 4 
 
-=head1 LICENSE
+=item * Brian Cassidy E<lt>bricas@cpan.orgE<gt>
 
-This program is free software; you can redistribute it and/or modify it under the terms
-of the Artistic License, distributed with Perl.
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2004 by Brian Cassidy
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
 
 =cut
+
+1;

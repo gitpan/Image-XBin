@@ -1,77 +1,5 @@
 package Image::XBin::Palette;
 
-use strict;
-
-$image::XBin::Palette::VERSION = '0.02';
-
-sub new {
-	my $class = shift;
-	my $data  = shift;
-	my $self  = {};
-
-	bless $self, $class;
-
-	$self->clear;
-	$self->read( $data ) if $data;
-
-	return $self;
-}
-
-sub read {
-	my $self    = shift;
-	my $data    = shift;
-
-	$self->{ data } = $data if ref( $data ) eq 'ARRAY';
-
-	my @palette = unpack( 'C*', $data );
-
-	my $palette = [];
-	for my $i ( 0..15 ) {
-		push @$palette, [];
-		for my $j ( 0..2 ) {
-			push @{ $palette->[ $#{ $palette } ] }, $palette[ $i * 3 + $j ];
-		}
-	}
-
-	$self->{ data } = $palette;
-}
-
-sub as_string {
-	my $self = shift;
-
-	my $output;
-
-	for my $color ( @{ $self->{ data } } ) {
-		$output .= pack( 'C', $_ ) for @{ $color };
-	}
-
-	return $output;
-}
-
-sub get {
-	my $self  = shift;
-	my $index = shift;
-
-	return $self->{ data }->[ $index ]; 
-}
-
-sub set {
-	my $self = shift;
-	my ( $index, $rgb ) = @_;
-
-	$self->{ data }->[ $index ] = $rgb; 
-}
-
-sub clear {
-	my $self = shift;
-
-	$self->{ data } = [];
-}
-
-1;
-
-=pod
-
 =head1 NAME
 
 Image::XBin::Palette - Manipulate XBin palette data
@@ -99,52 +27,138 @@ Image::XBin::Palette - Manipulate XBin palette data
 
 Xbin images can contain palette (16 indexes) data. This module will allow you to create, and manipulate that data.
 
+=cut
+
+use strict;
+use warnings;
+
+our $VERSION = '0.03';
+
 =head1 METHODS
 
-=over 4
-
-=item new($data)
+=head2 new( [$data] )
 
 Creates a new Image::XBin::Palette object. Unpacks 16 rgb triples.
 
-=item read($data)
+=cut
+
+sub new {
+	my $class = shift;
+	my $data  = shift;
+	my $self  = {};
+
+	bless $self, $class;
+
+	$self->clear;
+	$self->read( $data ) if $data;
+
+	return $self;
+}
+
+=head2 read( $data )
 
 Explicitly reads in data.
 
-=item as_string()
+=cut
+
+sub read {
+	my $self    = shift;
+	my $data    = shift;
+
+	$self->{ data } = $data if ref( $data ) eq 'ARRAY';
+
+	my @palette = unpack( 'C*', $data );
+
+	my $palette = [];
+	for my $i ( 0..15 ) {
+		push @$palette, [];
+		for my $j ( 0..2 ) {
+			push @{ $palette->[ $#{ $palette } ] }, $palette[ $i * 3 + $j ];
+		}
+	}
+
+	$self->{ data } = $palette;
+}
+
+=head2 as_string( )
 
 Returns the palette as a pack()'ed string - suitable for saving in an XBin.
 
-=item clear()
+=cut
 
-Clears any in-memory data.
+sub as_string {
+	my $self = shift;
 
-=item get($index)
+	my $output;
+
+	for my $color ( @{ $self->{ data } } ) {
+		$output .= pack( 'C', $_ ) for @{ $color };
+	}
+
+	return $output;
+}
+
+=head2 get( $index )
 
 Get the rgb triple at index $index
 
-=item set($index, $rgb)
+=cut
+
+sub get {
+	my $self  = shift;
+	my $index = shift;
+
+	return $self->{ data }->[ $index ]; 
+}
+
+=head2 set( $index, $rgb )
 
 Write an rgb triple at index $index
 
-=back
+=cut
+
+sub set {
+	my $self = shift;
+	my ( $index, $rgb ) = @_;
+
+	$self->{ data }->[ $index ] = $rgb; 
+}
+
+=head2 clear( )
+
+Clears any in-memory data.
+
+=cut
+
+sub clear {
+	my $self = shift;
+
+	$self->{ data } = [];
+}
 
 =head1 TODO
 
-	+ write some useful methods :)
+=over 4
 
-=head1 BUGS
+=item * write some useful methods :)
 
-If you have any questions, comments, bug reports or feature suggestions, 
-email them to Brian Cassidy <brian@alternation.net>.
+=back
 
-=head1 CREDITS
+=head1 AUTHOR
 
-This module was written by Brian Cassidy (http://www.alternation.net/).
+=over 4 
 
-=head1 LICENSE
+=item * Brian Cassidy E<lt>bricas@cpan.orgE<gt>
 
-This program is free software; you can redistribute it and/or modify it under the terms
-of the Artistic License, distributed with Perl.
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2004 by Brian Cassidy
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
 
 =cut
+
+1;

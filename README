@@ -4,11 +4,13 @@ XBin stands for "eXtended BIN" -- an extention to the normal raw-image BIN files
 
 XBin features:
 
-	+ allows for binary images up to 65536 columns wide, and 65536 lines high
-	+ can have an alternate set of palette colors either in blink or in non-blink mode
-	+ can have different textmode fonts from 1 to 32 scanlines high, consisting of
-	  either 256 or 512 different characters
-	+ can be compressed
+* allows for binary images up to 65536 columns wide, and 65536 lines high
+
+* can have an alternate set of palette colors either in blink or in non-blink mode
+
+* can have different textmode fonts from 1 to 32 scanlines high, consisting of either 256 or 512 different characters
+
+* can be compressed
 
 
 INSTALLATION
@@ -23,13 +25,12 @@ To install this module type the following:
 
 AUTHOR
 
-Copyright 2003, Brian Cassidy (brian@alternation.net).
-
-Questions, bug reports and suggestions can be emailed directly to me
-at brian@alternation.net.
+Brian Cassidy <bricas@cpan.org>
 
 
-LICENSE
+COPYRIGHT AND LICENSE
+
+Copyright 2004 by Brian Cassidy
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

@@ -1,424 +1,5 @@
 package Image::XBin;
 
-use strict;
-use Carp;
-use File::SAUCE;
-
-use Image::XBin::Palette;
-use Image::XBin::Font;
-
-$Image::XBin::VERSION = '0.02';
-
-use constant XBIN_ID               => 'XBIN';
-
-# Header byte constants
-use constant PALETTE               => 1;
-use constant FONT                  => 2;
-use constant COMPRESSED            => 4;
-use constant NON_BLINK             => 8;
-use constant FIVETWELVE_CHARS      => 16;
-
-# Compression byte constants
-use constant COMPRESSION_TYPE      => 192;
-use constant COMPRESSION_COUNTER   => 63;
-
-# Compression type constants
-use constant NO_COMPRESSION        => 0;
-use constant CHARACTER_COMPRESSION => 64;
-use constant ATTRIBUTE_COMPRESSION => 128;
-use constant FULL_COMPRESSION      => 192;
-
-# Attribute byte constants
-use constant ATTR_BLINK            => 128;
-use constant ATTR_BG               => 112;
-use constant ATTR_512              => 8;
-use constant ATTR_FG               => 7;
-
-my $header_template   = 'A4 C S S C C';
-my @header_fields     = qw( id eofchar width height fontsize flags );
-my $eof_char          = chr( 26 );
-
-# XBin:
-#
-#	Header		Required
-#	Palette		Optional
-#	Font		Optional
-#	Image Data	Optional
-
-sub new {
-	my $class = shift;
-	my $self = {};
-
-	bless $self, $class;
-
-	$self->clear;
-	if ( @_ == 1 ) {
-		$self->read( shift );
-	}
-	else {
-		# create new using options
-	}
-
-	return $self;
-}
-
-sub clear {
-	my $self = shift;
-
-	$self->{
-		header  => {
-			width  => 0,
-			height => 0
-		},
-		image   => undef,
-		font    => undef,
-		palette => undef
-	};
-}
-
-sub read {
-	my ( $self, $file ) = @_;
-
-	my( $data, $counter );
-
-	if ( $file =~ /^XBIN$eof_char/ ) {
-		$data = $file;
-	}
-	elsif ( ref( $file ) eq 'GLOB' ) {
-		# read from filehandle
-
-		{
-			local $/;
-			$data = <$file>;
-		}
-	}
-	else {
-		# open and read from filename
-
-		if ( not open( FILE, $file ) ) {
-			$@ = "File open error ($file): $!";
-			return undef;
-		}
-
-		binmode( FILE );
-
-		{
-			local $/;
-			$data = <FILE>;
-		}
-
-		close( FILE ) or carp( "File close error ($file): $!" );
-	}
-
-	return undef unless $data;
-
-	$data = $self->_remove_sauce( $data );
-
-	$self->_read_header( substr( $data, 0, 11 ) );
-
-	$counter = 11;
-
-	# read palette if it has one
-	if ( $self->has_palette ) {
-		$self->_read_palette( substr( $data, $counter, 48 ) );
-		$counter += 48;
-	}
-
-	# read font if it has one
-	if ( $self->has_font ) {
-		my $chars = $self->{header}->{fontsize} * ( $self->has_512chars ? 512 : 256 );
-		$self->_read_font( substr( $data, $counter, $chars ) );
-		$counter += $chars;
-	}
-
-	# read compressed or uncompressed data
-	if ( $self->is_compressed ) {
-		$self->_read_compressed( substr( $data, $counter ) );
-	}
-	else {
-		$self->_read_uncompressed( substr( $data, $counter ) );
-	}
-}
-
-sub write {
-	my $self = shift;
-	my $file = shift;
-
-	if ( ref( $file ) eq 'GLOB' ) {
-		binmode( $file );
-		seek( $file, 0, 0 );
-		print $file $self->as_string;
-	}
-	else {
-		if ( not open( FILE, ">$file" ) ) {
-			$@ = "File open error ($file): $!";
-			return;
-		}
-		binmode( FILE );
-
-		print FILE $self->as_string;
-
-		close( FILE ) or carp( "File close error ($file): $!" );
-	}
-}
-
-sub as_string {
-	my $self = shift;
-
-	my $output;
-
-	# must set header to uncompressed because we don't have a compression alg yet.
-	# set old value back when done.
-	# this is temporary!!!
-	my $compressed = $self->is_compressed;
-	$self->compress( 0 );
-
-	# header
-	for ( 0..$#header_fields ) {
-		$output .= pack( ( split( / /, $header_template ) )[ $_ ], $self->{ header }->{ $header_fields[ $_ ] } );
-	}
-
-	# palette
-	if ( $self->has_palette ) {
-		$output .= $self->{ palette }->as_string;
-	}
-
-	# font
-	if ( $self->has_font ) {
-		$output .= $self->{ font }->as_string;
-	}
-
-	# image
-	if ( $self->is_compressed ) {
-		# RLE compression alg.
-	}
-	else {
-		for my $data ( @{ $self->{ image } } ) {
-			$output .= pack( 'C*', ord( $data->[ 0 ] ), $data->[ 1 ] );
-		}
-	}
-
-	# set old value
-	$self->compress( $compressed );
-
-	return $output;
-}
-
-sub _remove_sauce {
-	my ( $self, $data ) = @_;
-	my $sauce = File::SAUCE->new;
-
-	my $val = $sauce->remove( $data, 1 );
-
-	return $val || $data;
-}
-
-sub _read_header {
-	my ( $self, $data ) = @_;
-	my %data;
-
-	# ID to identify an XBIN
-	return 0 unless $data =~ /^XBIN$eof_char/;
-
-	@data{@header_fields} = unpack( $header_template, $data );
-	$self->{header}       = \%data;
-
-	return 1;
-}
-
-sub _read_palette {
-	my ( $self, $data ) = @_;
-
-	$self->{ palette } = Image::XBin::Palette->new( $data );
-}
-
-sub _read_font {
-	my ( $self, $data ) = @_;
-
-	my $chars  = $self->has_512chars ? 512 : 256;
-	my $height = $self->{ header }->{ fontsize };
-
-	$self->{ font } = Image::XBin::Font->new( $data, $chars, $height );
-}
-
-sub _read_compressed {
-	my ( $self, $data ) = @_;
-
-	@_ = unpack( 'C*', $data );
-
-	my $image = [];
-
-	while ( @_ ) { 
-		my ( $char, $attr );
-
-		$char = shift;
-
-		my $type    = $char & COMPRESSION_TYPE;
-		my $counter = $char & COMPRESSION_COUNTER;
-
-		if ( $type == NO_COMPRESSION ) {
-			push @$image, [ chr( shift ), shift ] for ( 0..$counter );
-		}
-		elsif ( $type == CHARACTER_COMPRESSION ) {
-			$char = shift;
-			push @$image, [ chr( $char ), shift ] for ( 0..$counter );
-		}
-		elsif ( $type == ATTRIBUTE_COMPRESSION ) {
-			$attr = shift;
-			push @$image, [ chr( shift ), $attr ] for ( 0..$counter );
-		}
-		else { # FULL_COMPRESSION
-			$char = shift;
-			$attr = shift;
-			push @$image, [ chr( $char ), $attr ] for ( 0..$counter );
-		}
-	}
-
-	@$image = @{ $image }[ 0..( $self->{ header }->{ width } * $self->{ header }->{ height } - 1 ) ];
-
-	$self->{ image } = $image;
-}
-
-sub _read_uncompressed {
-	my ( $self, $data ) = @_;
-
-	@_ = unpack( 'C*', $data );
-
-	my $image = [];
-
-	# no compression, so read in everything 2 at a time
-	while ( @_ ) {
-		push @$image, [ chr( shift ), shift ];
-	}
-
-	$self->{ image } = $image;
-}
-
-sub has_palette {
-	return $_[ 0 ]->{ header }->{ flags } & PALETTE;
-}
-
-sub has_font {
-	return ( $_[ 0 ]->{ header }->{ flags } & FONT ) >> 1;
-}
-
-sub is_compressed {
-	return ( $_[ 0 ]->{ header }->{ flags } & COMPRESSED ) >> 2;
-}
-
-sub is_nonblink {
-	return ( $_[ 0 ]->{ header }->{ flags } & NON_BLINK ) >> 3;
-}
-
-sub has_512chars {
-	return ( $_[ 0 ]->{ header }->{ flags } & FIVETWELVE_CHARS ) >> 4;
-}
-
-sub width {
-	return $_[ 0 ]->{ header }->{ width };
-}
-
-sub height {
-	return $_[ 0 ]->{ header }->{ height };
-}
-
-sub putpixel {
-	my $self = shift;
-	my( $x, $y, $char, $attr ) = @_;
-
-	$self->{ image }->[ $y * $self->width + $x ] = [ $char, $attr ];
-}
-
-sub getpixel {
-	my $self = shift;
-	my( $x, $y ) = @_;
-
-	return @{ $self->{ image }->[ $y * $self->width + $x ] };
-}
-
-sub attr_blink {
-	my $self = shift;
-	my $attr = shift;
-
-	return ( $attr & ATTR_BLINK ) >> 7;
-}
-
-sub attr_bg {
-	my $self = shift;
-	my $attr = shift;
-
-	return ( $attr & ATTR_BG ) >> 4;
-}
-
-sub attr_512 {
-	my $self = shift;
-	my $attr = shift;
-
-	return ( $attr & ATTR_512 ) >> 3;
-}
-
-sub attr_fg {
-	my $self = shift;
-	my $attr = shift;
-
-	return ( $attr & ATTR_FG );
-}
-
-sub font {
-	my $self = shift;
-	my $font = shift;
-
-	return $self->{ font } unless $font;
-
-	# set palette and header flags if it's a valid object
-	if ( ref $font eq 'Image::XBin::Font' ) {
-		$self->{ font } = $font;
-		$self->{ header }->{ flags } |= FONT;
-		$self->{ header }->{ flags } |= FIVETWELVE_CHARS if $font->{ chars } == 512;
-	}
-	# clear data otherwise
-	else {
-		$self->{ header }->{ flags } &= ~FONT;
-		$self->{ header }->{ flags } &= ~FIVETWELVE_CHARS;
-		$self->{ font } = undef;
-	}
-}
-
-sub palette {
-	my $self    = shift;
-	my $palette = shift;
-
-	return $self->{ palette } unless $palette;
-
-	# set palette and header flags if it's a valid object
-	if ( ref $palette eq 'Image::XBin::Plaette' ) {
-		$self->{ palette } = $palette;
-		$self->{ header }->{ flags } |= PALETTE;
-	}
-	# clear data otherwise
-	else {
-		$self->{ header }->{ flags } &= ~PALETTE;
-		$self->{ palette } = undef;
-	}
-}
-
-sub compress {
-	my $self     = shift;
-	my $compress = shift;
-
-	# if $compress is true, set it in the flags. else, unset it
-	if ( $compress ) {
-		$self->{ header }->{ flags } |= COMPRESSED
-	}
-	else {
-		$self->{ header }->{ flags } &= ~COMPRESSED
-	}
-}
-
-1;
-
-=pod
-
 =head1 NAME
 
 Image::XBin - Load, create, manipulate and save XBin image files
@@ -427,17 +8,16 @@ Image::XBin - Load, create, manipulate and save XBin image files
 
 	use Image::XBin;
 
-	# Read the data...
-	# ...a filename, a reference to a filehandle, or raw data
-	my $img = Image::XBin->new('myxbin.xb');
+	# Read in a file...
+	my $img = Image::XBin->new( file => 'myxbin.xb' );
 
 	# Image width and height
 	my $w = $img->width;
 	my $h = $img->height;
 
 	# get and put "pixels"
-	my ( $char, $attr ) = $img->getpixel( $x, $y );
-	$img->putpixel( $x, $y, $char, $attr );
+	my $pixel = $img->getpixel( $x, $y );
+	$img->putpixel( $x, $y, $pixel );
 
 	# font (XBin::Font)
 	my $font = $img->font;
@@ -446,7 +26,7 @@ Image::XBin - Load, create, manipulate and save XBin image files
 	my $palette = $img->palette;
 
 	# save the data to a file
-	$img->write( 'x.xb' );
+	$img->write( file => 'x.xb' );
 
 =head1 DESCRIPTION
 
@@ -454,11 +34,17 @@ XBin stands for "eXtended BIN" -- an extention to the normal raw-image BIN files
 
 XBin features:
 
-	+ allows for binary images up to 65536 columns wide, and 65536 lines high
-	+ can have an alternate set of palette colors either in blink or in non-blink mode
-	+ can have different textmode fonts from 1 to 32 scanlines high, consisting of
-	  either 256 or 512 different characters
-	+ can be compressed
+=over 4 
+
+=item * allows for binary images up to 65536 columns wide, and 65536 lines high
+
+=item * can have an alternate set of palette colors either in blink or in non-blink mode
+
+=item * can have different textmode fonts from 1 to 32 scanlines high, consisting of either 256 or 512 different characters
+
+=item * can be compressed
+
+=back
 
 XBin file stucture:
 
@@ -475,113 +61,395 @@ XBin file stucture:
 Note, the only required element is a header. See the XBin specs for for information.
 http://www.acid.org/info/xbin/xbin.htm
 
+=cut
+
+use base qw( Class::Accessor );
+
+use strict;
+use warnings;
+
+use Carp;
+use Image::XBin::Parser;
+use Image::XBin::Util;
+
+our $VERSION = '0.03';
+
+use constant XBIN_ID          => 'XBIN';
+
+# Header byte constants
+use constant PALETTE          => 1;
+use constant FONT             => 2;
+use constant COMPRESSED       => 4;
+use constant NON_BLINK        => 8;
+use constant FIVETWELVE_CHARS => 16;
+
+my $header_template = 'A4 C S S C C';
+my @header_fields   = qw( id eofchar width height fontsize flags );
+my $eof_char        = chr( 26 );
+
+__PACKAGE__->mk_accessors( @header_fields );
+
 =head1 METHODS
 
-=over 4
-
-=item new([$filename or \*FILEHANDLE or $rawdata])
+=head2 new( %options )
 
 Creates a new XBin image. Currently only reads in data.
 
-=item read($filename or \*FILEHANDLE or $rawdata)
+	# filename
+	$xbin = Image::XBin->new( file => 'file.xb' );
+	
+	# file handle
+	$xbin = Image::XBin->new( handle => $handle );
 
-Explicitly reads data.
+	# string
+	$xbin = Image::XBin->new( string => $string );
 
-=item write($filename or \*FILEHANDLE)
+=cut
 
-Write the XBin data to a file.
+sub new {
+	my $class   = shift;
+	my $self    = {};
+	my %options = @_;
 
-=item as_string()
+	bless $self, $class;
 
-Returns the XBin data as a string - suitable for saving.
+	$self->clear;
 
-=item clear()
+	if(
+		exists $options{ file } or
+		exists $options{ string } or
+		exists $options{ handle }
+	) {
+		$self->read( @_ );
+	}
+	else {
+		# create new using options
+	}
+
+	return $self;
+}
+
+=head2 clear(  )
 
 Clears any in-memory data.
 
-=item font([Image::XBin::Font])
+=cut
+
+sub clear {
+	my $self = shift;
+
+	$self->id( XBIN_ID );
+	$self->eofchar( $eof_char );
+	$self->fontsize( undef );
+	$self->flags( 0 );
+	$self->width( 0 );
+	$self->height( 0 );
+	$self->font( undef );
+	$self->palette( undef );
+	$self->sauce( undef );
+	$self->{ image } = undef;
+}
+
+=head2 read( %options )
+
+Explicitly reads in an XBin.
+
+=cut
+
+sub read {
+	my $self    = shift;
+	my %options = @_;
+	$self       = Image::XBin::Parser->new( %options );
+
+	return $self;
+}
+
+=head2 write( %options )
+
+Write the XBin data to a file, handle of string.
+
+=cut
+
+sub write {
+	my $self    = shift;
+	my %options = @_;
+	my $file    = create_io_object( \%options, '>' );
+
+	print $file $self->as_string;
+}
+
+=head2 as_string( )
+
+Returns the XBin data as a string - suitable for saving.
+
+=cut
+
+sub as_string {
+	my $self = shift;
+
+	my $output;
+
+	# must set header to uncompressed because we don't have a compression alg yet.
+	# set old value back when done.
+	# this is temporary!!!
+	my $compressed = $self->is_compressed;
+	$self->compress( 0 );
+
+	# header
+	$output .= pack( $header_template, map { $self->$_ } @header_fields );
+
+	# palette
+	if( $self->has_palette ) {
+		$output .= $self->palette->as_string;
+	}
+
+	# font
+	if( $self->has_font ) {
+		$output .= $self->font->as_string;
+	}
+
+	# image
+	if( $self->is_compressed ) {
+		# RLE compression alg.
+	}
+	else {
+		for my $y ( 0..$self->height - 1 ) {
+			for my $x ( 0..$self->width - 1 ) {
+				my $pixel = $self->getpixel( $x, $y );
+				$output .= pack( 'C*', ord( $pixel->char ), $pixel->attr );
+			}
+		}
+	}
+
+	if( $self->sauce ) {
+		$output .= $self->sauce->as_string;
+	}
+
+	# set old value
+	$self->compress( $compressed );
+
+	return $output;
+}
+
+=head2 has_palette( )
+
+Returns true if the file has a palette defined.
+
+=cut
+
+sub has_palette {
+	return $_[ 0 ]->flags & PALETTE;
+}
+
+=head2 has_font( )
+
+Returns true if the file has a font defined.
+
+=cut
+
+sub has_font {
+	return ( $_[ 0 ]->flags & FONT ) >> 1;
+}
+
+=head2 is_compressed( )
+
+Returns true if the data was (or is to be) compressed
+
+=cut
+
+sub is_compressed {
+	my $self = shift;
+	return $self->compress;
+}
+
+=head2 is_nonblink( )
+
+Returns true if the file is in non-blink mode.
+
+=cut
+
+sub is_nonblink {
+	return ( $_[ 0 ]->flags & NON_BLINK ) >> 3;
+}
+
+=head2 has_512chars( )
+
+Returns true if the font associated with the XBin has 512 characters
+
+=cut
+
+sub has_512chars {
+	return ( $_[ 0 ]->flags & FIVETWELVE_CHARS ) >> 4;
+}
+
+=head2 sauce( [File::SAUCE] )
+
+Gets / sets the SAUCE object associated with the XBin.
+
+=cut
+
+sub sauce {
+	my $self  = shift;
+	my $sauce = shift;
+
+	if( ref $sauce eq 'File::SAUCE' ) {
+		$self->{ sauce } = $sauce;
+	}
+	elsif( $sauce ) {
+		$self->{ sauce } = undef;
+
+	}
+
+	return $self->{ sauce };
+}
+
+=head2 putpixel( $x, $y, $pixel )
+
+Sets the pixel at $x, $y with $pixel (which should be an Image::XBin::Pixel).
+
+=cut
+
+sub putpixel {
+	my $self = shift;
+	return $self->pixel( @_ );
+}
+
+=head2 getpixel( $x, $y )
+
+Returns the Image::XBin::Pixel object at $x, $y (or undef).
+
+=cut
+
+sub getpixel {
+	my $self = shift;
+	return $self->pixel( @_ );
+}
+
+=head2 pixel( [$x, $y, $pixel] )
+
+Generic get / set method used by both getpixel and putpixel.
+
+=cut
+
+sub pixel {
+	my $self = shift;
+	my( $x, $y, $pixel ) = @_;
+
+	if( defined $pixel ) {
+		$self->{ image }->[ $y * $self->width + $x ] = $pixel;
+	}
+
+	return $self->{ image }->[ $y * $self->width + $x ];
+}
+
+=head2 font( [Image::XBin::Font] )
 
 Gets or sets the font. Must be of type Image::XBin::Font. Passing anything but that type
-will remove the font and related header data.
+will remove the font and change related header data.
 
-=item palette([Image::XBin::Palette])
+=cut
+
+sub font {
+	my $self = shift;
+	my $font = $_[ 0 ];
+
+	# set palette and header flags if it's a valid object
+	if( @_ and ref $font eq 'Image::XBin::Font' ) {
+		$self->{ font } = $font;
+		$self->flags( $self->flags | FONT );
+		$self->flags( $self->flags | FIVETWELVE_CHARS ) if $font->{ chars } == 512;
+	}
+	# clear data otherwise
+	elsif( @_ ) {
+		$self->flags( $self->flags & ~FONT );
+		$self->flags( $self->flags & ~FIVETWELVE_CHARS );
+		$self->{ font } = undef;
+	}
+
+	return $self->{ font };
+}
+
+=head2 palette( [Image::XBin::Palette] )
 
 Gets or sets the palette. Must be of type Image::XBin::Palette. Passing anything but that type
 will remove the font and related header data.
 
-=item compress([true or false])
+=cut
 
-Sets the compression header value to true or false. Affect the
-output from as_string() and write()
+sub palette {
+	my $self    = shift;
+	my $palette = $_[ 0 ];
+	use Data::Dumper;
 
-=item width()
+	# set palette and header flags if it's a valid object
+	if( @_ and ref $palette eq 'Image::XBin::Palette' ) {
+		$self->{ palette } = $palette;
+		$self->flags( $self->flags | PALETTE );
+	}
+	# clear data otherwise
+	elsif( @_ ) {
+		$self->flags( $self->flags & ~PALETTE );
+		$self->{ palette } = undef;
+	}
+
+	return $self->{ palette };
+}
+
+=head2 compress( [true or false] )
+
+Get / sets the compression header value to true or false. Affect the
+output from as_string() and write().
+
+=cut
+
+sub compress {
+	my $self     = shift;
+	my $compress = $_[ 0 ];
+
+	# if $compress is true, set it in the flags. else, unset it
+	if( @_ and $compress ) {
+		$self->flags( $self->flags | COMPRESSED );
+	}
+	elsif( @_ ) {
+		$self->flags( $self->flags & ~COMPRESSED );
+	}
+
+	return ( $self->flags & COMPRESSED ) >> 2;
+}
+
+=head2 width( )
 
 Returns the image width.
 
-=item height()
+=head2 height( )
 
 Returns the image height.
 
-=item getpixel($x, $y)
+=head1 TODO
 
-Returns an array of the character and the attribute byte for the
-"pixel" at $x, $y.
+=over 4
 
-=item putpixel($x, $y, $char, $attr)
+=item * fix write() method to include compression
 
-Sets the pixel at $x, $y with $char and $attr.
-
-=item attr_blink($attr)
-
-Returns the blink bit of the attribute byte.
-
-=item attr_bg($attr)
-
-Returns the background palette index.
-
-=item attr_512($attr)
-
-Returns the 512 bit of the attribute byte.
-
-=item attr_fg($attr)
-
-Returns the foreground palette index.
-
-=item has_palette()
-
-Returns true if the file has a palette defined.
-
-=item has_font()
-
-Returns true if the file has a font defined.
-
-=item is_compressed()
-
-Returns true if the data was compressed
-
-=item is_nonblink()
-
-Returns true if the file is in non-blink mode.
+=item * use new()'s options to create a new file from scratch
 
 =back
 
-=head1 TODO
+=head1 AUTHOR
 
-	+ fix write() method to include compression
-	+ use new()'s options to create a new file from scratch
+=over 4 
 
-=head1 BUGS
+=item * Brian Cassidy E<lt>bricas@cpan.orgE<gt>
 
-If you have any questions, comments, bug reports or feature suggestions, 
-email them to Brian Cassidy <brian@alternation.net>.
+=back
 
-=head1 CREDITS
+=head1 COPYRIGHT AND LICENSE
 
-This module was written by Brian Cassidy (http://www.alternation.net/).
+Copyright 2004 by Brian Cassidy
 
-=head1 LICENSE
-
-This program is free software; you can redistribute it and/or modify it under the terms
-of the Artistic License, distributed with Perl.
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
 
 =cut
+
+1;
