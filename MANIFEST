@@ -1,15 +1,14 @@
 Build.PL
 Changes
 lib/Image/XBin.pm
-lib/Image/XBin/Font/Default.pm
 lib/Image/XBin/Font.pm
-lib/Image/XBin/Palette/Default.pm
+lib/Image/XBin/Font/Default.pm
 lib/Image/XBin/Palette.pm
+lib/Image/XBin/Palette/Default.pm
 lib/Image/XBin/Parser.pm
 lib/Image/XBin/Pixel.pm
 lib/Image/XBin/Util.pm
-MANIFEST
-META.yml
+MANIFEST			This list of files
 t/01-use.t
 t/10-xbin.t
 t/11-font.t
@@ -25,3 +24,4 @@ t/data/T1-XBIN.XB
 t/data/US-XBIN.XB
 Makefile.PL
 README
+META.yml

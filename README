@@ -1,5 +1,9 @@
 NAME
-    Image::XBin - Load, create, manipulate and save XBin image files
+    Image::XBin - (DEPRECATED) Load, create, manipulate and save XBin image
+    files
+
+DEPRECATION NOTICE
+        This module has been replaced by Image:TextMode.
 
 SYNOPSIS
             use Image::XBin;
@@ -30,13 +34,16 @@ DESCRIPTION
 
     XBin features:
 
-    * allows for binary images up to 65536 columns wide, and 65536 lines
-    high
-    * can have an alternate set of palette colors either in blink or in
-    non-blink mode
-    * can have different textmode fonts from 1 to 32 scanlines high,
-    consisting of either 256 or 512 different characters
-    * can be compressed
+    *   allows for binary images up to 65536 columns wide, and 65536 lines
+        high
+
+    *   can have an alternate set of palette colors either in blink or in
+        non-blink mode
+
+    *   can have different textmode fonts from 1 to 32 scanlines high,
+        consisting of either 256 or 512 different characters
+
+    *   can be compressed
 
     XBin file stucture:
 
@@ -74,8 +81,8 @@ METHODS
 
             # filename
             $xbin = Image::XBin->new( file => 'file.xb' );
-        
-            # file handle
+            
+        # file handle
             $xbin = Image::XBin->new( handle => $handle );
 
             # string
@@ -163,14 +170,15 @@ METHODS
     Returns the image height.
 
 TODO
-    * fix write() method to include compression
-    * use new()'s options to create a new file from scratch
+    *   fix write() method to include compression
+
+    *   use new()'s options to create a new file from scratch
 
 AUTHOR
-    * Brian Cassidy <bricas@cpan.org>
+    *   Brian Cassidy <bricas@cpan.org>
 
 COPYRIGHT AND LICENSE
-    Copyright 2005 by Brian Cassidy
+    Copyright 2003-2009 by Brian Cassidy
 
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.

@@ -1,10 +1,12 @@
---- #YAML:1.0
+---
 name: Image-XBin
-version: 0.05
+version: 0.06
 author:
-  - Brian Cassidy <bricas@cpan.org>
-abstract: Load, create, manipulate and save XBin image files
+  - 'Brian Cassidy <bricas@cpan.org>'
+abstract: '(DEPRECATED) Load, create, manipulate and save XBin image files'
 license: perl
+resources:
+  license: http://dev.perl.org/licenses/
 requires:
   Class::Accessor: 0
   File::SAUCE: 0.12
@@ -16,26 +18,29 @@ requires:
 provides:
   Image::XBin:
     file: lib/Image/XBin.pm
-    version: 0.05
+    version: 0.06
   Image::XBin::Font:
     file: lib/Image/XBin/Font.pm
-    version: 0.04
+    version: 0.06
   Image::XBin::Font::Default:
     file: lib/Image/XBin/Font/Default.pm
-    version: 0.02
+    version: 0.06
   Image::XBin::Palette:
     file: lib/Image/XBin/Palette.pm
-    version: 0.03
+    version: 0.06
   Image::XBin::Palette::Default:
     file: lib/Image/XBin/Palette/Default.pm
-    version: 0.02
+    version: 0.06
   Image::XBin::Parser:
     file: lib/Image/XBin/Parser.pm
-    version: 0.03
+    version: 0.06
   Image::XBin::Pixel:
     file: lib/Image/XBin/Pixel.pm
-    version: 0.02
+    version: 0.06
   Image::XBin::Util:
     file: lib/Image/XBin/Util.pm
-    version: 0.01
-generated_by: Module::Build version 0.2609
+    version: 0.06
+generated_by: Module::Build version 0.280801
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
